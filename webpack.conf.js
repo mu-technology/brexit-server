@@ -15,7 +15,7 @@ module.exports = {
     entry: './src/server.js',
     target: 'node',
     output: {
-        path: path.resolve('./dist'),
+        path: path.resolve('./'),
         filename: 'server.js'
     },
     module: {

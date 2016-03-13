@@ -44,11 +44,13 @@ gulp.task('compile:api', function (done) {
     webpack(require('./webpack.conf.js')).run(onBuild(done));
 });
 
+gulp.task('release:api', ['build:api', 'copy:api']);
+
 gulp.task('build:api', ['lint:api', 'compile:api']);
 
 gulp.task('build:static', ['lint:static'], () => {
     gulp.src('./src/static-server.js')
-        .pipe(gulp.dest('./dist'));
+        .pipe(gulp.dest('./'));
 });
 
 gulp.task('default', ['clean.dist.dev', 'build:static', 'build:api']);
