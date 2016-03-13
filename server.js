@@ -58,15 +58,15 @@
 	
 	var _voteGet2 = _interopRequireDefault(_voteGet);
 	
-	var _votePost = __webpack_require__(9);
+	var _votePost = __webpack_require__(10);
 	
 	var _votePost2 = _interopRequireDefault(_votePost);
 	
-	var _auth = __webpack_require__(10);
+	var _auth = __webpack_require__(11);
 	
 	var _auth2 = _interopRequireDefault(_auth);
 	
-	var _auth3 = __webpack_require__(11);
+	var _auth3 = __webpack_require__(12);
 	
 	var _auth4 = _interopRequireDefault(_auth3);
 	
@@ -74,7 +74,10 @@
 	
 	var authService = new _auth4.default();
 	var server = new _hapi2.default.Server();
-	server.connection({ port: 3000 });
+	server.connection({
+	    host: process.env.IP || '0.0.0.0',
+	    port: process.env.PORT || 3000
+	});
 	
 	server.register(_hapiAuthJwt2.default, function () {
 	    server.auth.strategy('token', 'jwt', authService.authStrategy);
@@ -289,6 +292,10 @@
 	
 	var _q2 = _interopRequireDefault(_q);
 	
+	var _url = __webpack_require__(9);
+	
+	var _url2 = _interopRequireDefault(_url);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -299,7 +306,13 @@
 	
 	        _classCallCheck(this, Redis);
 	
-	        this.client = params.client || _redis2.default.createClient();
+	        if (process.env.REDISTOGO_URL) {
+	            var rtg = _url2.default.parse(process.env.REDISTOGO_URL);
+	            this.client = _redis2.default.createClient(rtg.port, rtg.hostname);
+	            this.client.auth(rtg.auth.split(':')[1]);
+	        } else {
+	            this.client = params.client || _redis2.default.createClient();
+	        }
 	        this.client.on('error', function (err) {
 	            return console.log('Error ' + err);
 	        });
@@ -356,6 +369,12 @@
 
 /***/ },
 /* 9 */
+/***/ function(module, exports) {
+
+	module.exports = require("url");
+
+/***/ },
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -420,7 +439,7 @@
 	exports.default = VotePostRoute;
 
 /***/ },
-/* 10 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -435,7 +454,7 @@
 	
 	var _route2 = _interopRequireDefault(_route);
 	
-	var _auth = __webpack_require__(11);
+	var _auth = __webpack_require__(12);
 	
 	var _auth2 = _interopRequireDefault(_auth);
 	
@@ -480,7 +499,7 @@
 	exports.default = AuthPostRoute;
 
 /***/ },
-/* 11 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -495,23 +514,23 @@
 	
 	var _q2 = _interopRequireDefault(_q);
 	
-	var _qs = __webpack_require__(12);
+	var _qs = __webpack_require__(13);
 	
 	var _qs2 = _interopRequireDefault(_qs);
 	
-	var _jwtSimple = __webpack_require__(13);
+	var _jwtSimple = __webpack_require__(14);
 	
 	var _jwtSimple2 = _interopRequireDefault(_jwtSimple);
 	
-	var _moment = __webpack_require__(14);
+	var _moment = __webpack_require__(15);
 	
 	var _moment2 = _interopRequireDefault(_moment);
 	
-	var _request = __webpack_require__(15);
+	var _request = __webpack_require__(16);
 	
 	var _request2 = _interopRequireDefault(_request);
 	
-	var _config = __webpack_require__(16);
+	var _config = __webpack_require__(17);
 	
 	var _redisDb = __webpack_require__(6);
 	
@@ -678,31 +697,31 @@
 	exports.default = AuthService;
 
 /***/ },
-/* 12 */
+/* 13 */
 /***/ function(module, exports) {
 
 	module.exports = require("qs");
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	module.exports = require("jwt-simple");
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	module.exports = require("moment");
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	module.exports = require("request");
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports) {
 
 	'use strict';

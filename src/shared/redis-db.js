@@ -1,10 +1,17 @@
 import redis from 'redis';
 import q from 'q';
+import url from 'url';
 
 class Redis {
 
     constructor(params = {}) {
-        this.client = params.client || redis.createClient();
+        if (process.env.REDISTOGO_URL) {
+            const rtg = url.parse(process.env.REDISTOGO_URL);
+            this.client = redis.createClient(rtg.port, rtg.hostname);
+            this.client.auth(rtg.auth.split(':')[1]);
+        } else {
+            this.client = params.client || redis.createClient();
+        }
         this.client.on('error', (err) => console.log(`Error ${err}`));
     }
 

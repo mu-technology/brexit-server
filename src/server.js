@@ -7,7 +7,10 @@ import AuthService from './routes/auth/auth.service';
 
 const authService = new AuthService();
 const server = new Hapi.Server();
-server.connection({ port: 3000 });
+server.connection({
+    host: process.env.IP || '0.0.0.0',
+    port: process.env.PORT || 3000
+});
 
 server.register(hapiAuthJwt, () => {
     server.auth.strategy('token', 'jwt', authService.authStrategy);
