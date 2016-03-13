@@ -79,6 +79,14 @@
 	server.register(_hapiAuthJwt2.default, function () {
 	    server.auth.strategy('token', 'jwt', authService.authStrategy);
 	
+	    server.route({
+	        method: 'GET',
+	        path: '/api/test',
+	        handler: function handler(request, reply) {
+	            reply({ test: 'test' });
+	        }
+	    });
+	
 	    server.route(new _voteGet2.default());
 	    server.route(new _votePost2.default());
 	    server.route(new _auth2.default());

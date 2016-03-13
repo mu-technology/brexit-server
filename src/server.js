@@ -12,6 +12,14 @@ server.connection({ port: 3000 });
 server.register(hapiAuthJwt, () => {
     server.auth.strategy('token', 'jwt', authService.authStrategy);
 
+    server.route({
+        method: 'GET',
+        path: '/api/test',
+        handler(request, reply) {
+            reply({ test: 'test' });
+        }
+    });
+
     server.route(new VoteGetRoute());
     server.route(new VotePostRoute());
     server.route(new AuthPostRoute());
