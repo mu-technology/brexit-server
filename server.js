@@ -324,12 +324,10 @@
 	    if (process.env.REDISTOGO_URL) {
 	        var rtg = _url2.default.parse(process.env.REDISTOGO_URL);
 	        client = _redis2.default.createClient(rtg.port, rtg.hostname);
-	        console.log('client ->', client);
 	        client.auth(rtg.auth.split(':')[1]);
 	    } else {
 	        client = _redis2.default.createClient();
 	    }
-	    console.log('* koko *');
 	    return client;
 	}
 
