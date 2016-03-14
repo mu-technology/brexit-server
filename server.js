@@ -287,6 +287,9 @@
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	var redisClient = createRedisClient();
+	redisClient.on('error', function (err) {
+	    return console.log('Error ' + err);
+	});
 	
 	function saveHash(key, hash) {
 	    var deferred = _q2.default.defer();
@@ -325,10 +328,6 @@
 	    } else {
 	        client = _redis2.default.createClient();
 	    }
-	    client.on('error', function (err) {
-	        return console.log('Error ' + err);
-	    });
-	    console.log('* create client *');
 	    return client;
 	}
 

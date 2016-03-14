@@ -3,6 +3,7 @@ import q from 'q';
 import url from 'url';
 
 const redisClient = createRedisClient();
+redisClient.on('error', (err) => console.log(`Error ${err}`));
 
 export function saveHash(key, hash) {
     const deferred = q.defer();
@@ -42,6 +43,5 @@ function createRedisClient() {
     } else {
         client = redis.createClient();
     }
-    client.on('error', (err) => console.log(`Error ${err}`));
     return client;
 }
