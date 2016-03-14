@@ -39,9 +39,11 @@ function createRedisClient() {
     if (process.env.REDISTOGO_URL) {
         const rtg = url.parse(process.env.REDISTOGO_URL);
         client = redis.createClient(rtg.port, rtg.hostname);
+        console.log('client ->', client);
         client.auth(rtg.auth.split(':')[1]);
     } else {
         client = redis.createClient();
     }
+    console.log('* koko *');
     return client;
 }
