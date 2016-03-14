@@ -4,12 +4,11 @@ import jwt from 'jwt-simple';
 import moment from 'moment';
 import request from 'request';
 import { CONFIG } from '../../config';
-import Redis from '../../shared/redis-db';
+import { getHash, saveHash } from '../../shared/redis-db';
 
-class AuthService extends Redis {
+class AuthService {
 
     constructor(payload = null) {
-        super();
         this.payload = JSON.parse(payload);
 
         this.authStrategy = {
@@ -34,7 +33,7 @@ class AuthService extends Redis {
     }
 
     validateUser(req, decoded, callback) {
-        this.getHash(userHashKey(decoded.sub))
+        getHash(userHashKey(decoded.sub))
             .then((session) => {
                 if (!session) {
                     return callback(null, false);
@@ -116,7 +115,7 @@ function obtainProfileInfo(parsedAccessToken) {
 }
 
 function createUserAccount(user) {
-    return this.saveHash(userHashKey(user.id), user).then(() => user, (err) => err);
+    return saveHash(userHashKey(user.id), user).then(() => user, (err) => err);
 }
 
 function createJWT(user) {

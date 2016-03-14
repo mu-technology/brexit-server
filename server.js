@@ -226,29 +226,17 @@
 	
 	var _redisDb = __webpack_require__(6);
 	
-	var _redisDb2 = _interopRequireDefault(_redisDb);
-	
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
-	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-	
-	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-	
-	var VoteService = function (_Redis) {
-	    _inherits(VoteService, _Redis);
-	
+	var VoteService = function () {
 	    function VoteService() {
 	        _classCallCheck(this, VoteService);
-	
-	        return _possibleConstructorReturn(this, Object.getPrototypeOf(VoteService).apply(this, arguments));
 	    }
 	
 	    _createClass(VoteService, [{
 	        key: 'saveVote',
 	        value: function saveVote(user, vote) {
-	            return this.saveHash(voteHashKey(user.id), vote).then(function () {
+	            return (0, _redisDb.saveHash)(voteHashKey(user.id), vote).then(function () {
 	                return vote;
 	            }, function (err) {
 	                return err;
@@ -257,14 +245,14 @@
 	    }, {
 	        key: 'getVote',
 	        value: function getVote(user) {
-	            return this.getHash(voteHashKey(user.id)).then(function (vote) {
+	            return (0, _redisDb.getHash)(voteHashKey(user.id)).then(function (vote) {
 	                return vote;
 	            });
 	        }
 	    }]);
 	
 	    return VoteService;
-	}(_redisDb2.default);
+	}();
 	
 	function voteHashKey(id) {
 	    return 'vote:' + id;
@@ -281,8 +269,8 @@
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
-	
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	exports.saveHash = saveHash;
+	exports.getHash = getHash;
 	
 	var _redis = __webpack_require__(7);
 	
@@ -298,62 +286,51 @@
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	var redisClient = createRedisClient();
 	
-	var Redis = function () {
-	    function Redis() {
-	        var params = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	function saveHash(key, hash) {
+	    var deferred = _q2.default.defer();
 	
-	        _classCallCheck(this, Redis);
-	
-	        if (process.env.REDISTOGO_URL) {
-	            var rtg = _url2.default.parse(process.env.REDISTOGO_URL);
-	            this.client = _redis2.default.createClient(rtg.port, rtg.hostname);
-	            this.client.auth(rtg.auth.split(':')[1]);
-	        } else {
-	            this.client = params.client || _redis2.default.createClient();
+	    redisClient.hmset(key, hash, function (err, result) {
+	        if (err) {
+	            deferred.reject('Error saving hash to Redis: ' + err);
 	        }
-	        this.client.on('error', function (err) {
-	            return console.log('Error ' + err);
-	        });
+	
+	        deferred.resolve(result);
+	    });
+	
+	    return deferred.promise;
+	}
+	
+	function getHash(key) {
+	    var deferred = _q2.default.defer();
+	
+	    redisClient.hgetall(key, function (err, result) {
+	        if (err) {
+	            deferred.reject('Error retrieving hash ' + key + ' from Redis: ' + err);
+	        }
+	
+	        deferred.resolve(result);
+	    });
+	
+	    return deferred.promise;
+	}
+	
+	function createRedisClient() {
+	    var client = null;
+	    if (process.env.REDISTOGO_URL) {
+	        var rtg = _url2.default.parse(process.env.REDISTOGO_URL);
+	        client = _redis2.default.createClient(rtg.port, rtg.hostname);
+	        client.auth(rtg.auth.split(':')[1]);
+	    } else {
+	        client = _redis2.default.createClient();
 	    }
-	
-	    _createClass(Redis, [{
-	        key: 'saveHash',
-	        value: function saveHash(key, hash) {
-	            var deferred = _q2.default.defer();
-	
-	            this.client.hmset(key, hash, function (err, result) {
-	                if (err) {
-	                    deferred.reject('Error saving hash to Redis: ' + err);
-	                }
-	
-	                deferred.resolve(result);
-	            });
-	
-	            return deferred.promise;
-	        }
-	    }, {
-	        key: 'getHash',
-	        value: function getHash(key) {
-	            var deferred = _q2.default.defer();
-	
-	            this.client.hgetall(key, function (err, result) {
-	                if (err) {
-	                    deferred.reject('Error retrieving hash ' + key + ' from Redis: ' + err);
-	                }
-	
-	                deferred.resolve(result);
-	            });
-	
-	            return deferred.promise;
-	        }
-	    }]);
-	
-	    return Redis;
-	}();
-	
-	exports.default = Redis;
+	    client.on('error', function (err) {
+	        return console.log('Error ' + err);
+	    });
+	    console.log('* create client *');
+	    return client;
+	}
 
 /***/ },
 /* 7 */
@@ -534,40 +511,29 @@
 	
 	var _redisDb = __webpack_require__(6);
 	
-	var _redisDb2 = _interopRequireDefault(_redisDb);
-	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
-	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-	
-	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-	
-	var AuthService = function (_Redis) {
-	    _inherits(AuthService, _Redis);
-	
+	var AuthService = function () {
 	    function AuthService() {
 	        var payload = arguments.length <= 0 || arguments[0] === undefined ? null : arguments[0];
 	
 	        _classCallCheck(this, AuthService);
 	
-	        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(AuthService).call(this));
+	        this.payload = JSON.parse(payload);
 	
-	        _this.payload = JSON.parse(payload);
-	
-	        _this.authStrategy = {
+	        this.authStrategy = {
 	            key: _config.CONFIG.TOKEN_SECRET,
-	            validateFunc: _this.validateUser.bind(_this),
+	            validateFunc: this.validateUser.bind(this),
 	            verifyOptions: { algorithms: ['HS256'] }
 	        };
-	        return _this;
 	    }
 	
 	    _createClass(AuthService, [{
 	        key: 'authenticate',
 	        value: function authenticate() {
-	            var _this2 = this;
+	            var _this = this;
 	
 	            if (!this.payload.oauth_token || !this.payload.oauth_verifier) {
 	                return obtainRequestToken(this.payload);
@@ -576,7 +542,7 @@
 	            return obtainAccessToken(this.payload).then(function (accessToken) {
 	                return obtainProfileInfo(accessToken);
 	            }).then(function (user) {
-	                return createUserAccount.call(_this2, user);
+	                return createUserAccount.call(_this, user);
 	            }).then(function (user) {
 	                return {
 	                    token: createJWT(user),
@@ -587,7 +553,7 @@
 	    }, {
 	        key: 'validateUser',
 	        value: function validateUser(req, decoded, callback) {
-	            this.getHash(userHashKey(decoded.sub)).then(function (session) {
+	            (0, _redisDb.getHash)(userHashKey(decoded.sub)).then(function (session) {
 	                if (!session) {
 	                    return callback(null, false);
 	                }
@@ -599,7 +565,7 @@
 	    }]);
 	
 	    return AuthService;
-	}(_redisDb2.default);
+	}();
 	
 	function obtainRequestToken(payload) {
 	    var deferred = _q2.default.defer();
@@ -673,7 +639,7 @@
 	}
 	
 	function createUserAccount(user) {
-	    return this.saveHash(userHashKey(user.id), user).then(function () {
+	    return (0, _redisDb.saveHash)(userHashKey(user.id), user).then(function () {
 	        return user;
 	    }, function (err) {
 	        return err;
