@@ -1,6 +1,7 @@
 import Hapi from 'hapi';
 import hapiAuthJwt from 'hapi-auth-jwt';
 import VoteGetRoute from './routes/vote/vote.get.js';
+import VoteListRoute from './routes/vote/vote.list.js';
 import VotePostRoute from './routes/vote/vote.post.js';
 import AuthPostRoute from './routes/auth/auth.post';
 import AuthService from './routes/auth/auth.service';
@@ -24,6 +25,7 @@ server.register(hapiAuthJwt, () => {
     });
 
     server.route(new VoteGetRoute());
+    server.route(new VoteListRoute());
     server.route(new VotePostRoute());
     server.route(new AuthPostRoute());
 });

@@ -58,15 +58,19 @@
 	
 	var _voteGet2 = _interopRequireDefault(_voteGet);
 	
-	var _votePost = __webpack_require__(10);
+	var _voteList = __webpack_require__(10);
+	
+	var _voteList2 = _interopRequireDefault(_voteList);
+	
+	var _votePost = __webpack_require__(11);
 	
 	var _votePost2 = _interopRequireDefault(_votePost);
 	
-	var _auth = __webpack_require__(11);
+	var _auth = __webpack_require__(12);
 	
 	var _auth2 = _interopRequireDefault(_auth);
 	
-	var _auth3 = __webpack_require__(12);
+	var _auth3 = __webpack_require__(13);
 	
 	var _auth4 = _interopRequireDefault(_auth3);
 	
@@ -91,6 +95,7 @@
 	    });
 	
 	    server.route(new _voteGet2.default());
+	    server.route(new _voteList2.default());
 	    server.route(new _votePost2.default());
 	    server.route(new _auth2.default());
 	});
@@ -224,9 +229,17 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _redisDb = __webpack_require__(6);
+	var _q = __webpack_require__(6);
+	
+	var _q2 = _interopRequireDefault(_q);
+	
+	var _redisDb = __webpack_require__(7);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	var VOTE_SETS_IDS = ['vote:1', 'vote:2'];
 	
 	var VoteService = function () {
 	    function VoteService() {
@@ -236,10 +249,28 @@
 	    _createClass(VoteService, [{
 	        key: 'saveVote',
 	        value: function saveVote(user, vote) {
-	            return (0, _redisDb.saveHash)(voteHashKey(user.id), vote).then(function () {
-	                return vote;
-	            }, function (err) {
-	                return err;
+	            // vote id = 1 comes in
+	            // we add it user A to vote:1
+	            // we get the intersection of vote:1|vote:2
+	            // if intersection includes user A
+	            // we remove user A from vote:2
+	            return (0, _redisDb.addMemberToSet)(voteHashKey(vote.id), user.id).then(function () {
+	                return (0, _redisDb.getIntersectionOfSets)(VOTE_SETS_IDS);
+	            }).then(function (intersection) {
+	                if (intersection.indexOf(user.id) > -1) {
+	                    var keySetToRemove = VOTE_SETS_IDS.filter(function (v) {
+	                        return v !== voteHashKey(vote.id);
+	                    })[0];
+	
+	                    return (0, _redisDb.removeMemberFromSet)(keySetToRemove, user.id);
+	                }
+	                return _q2.default.when(vote);
+	            }).then(function () {
+	                return (0, _redisDb.saveHash)(voteHashKey(user.id), vote).then(function () {
+	                    return vote;
+	                }, function (err) {
+	                    return err;
+	                });
 	            });
 	        }
 	    }, {
@@ -247,6 +278,22 @@
 	        value: function getVote(user) {
 	            return (0, _redisDb.getHash)(voteHashKey(user.id)).then(function (vote) {
 	                return vote;
+	            });
+	        }
+	    }, {
+	        key: 'listVotes',
+	        value: function listVotes() {
+	            var voteCountPromises = VOTE_SETS_IDS.map(function (key) {
+	                return (0, _redisDb.getSetMembersCount)(key);
+	            });
+	
+	            return _q2.default.all(voteCountPromises).then(function (result) {
+	                return VOTE_SETS_IDS.map(function (k, i) {
+	                    return {
+	                        id: i + 1,
+	                        count: result[i]
+	                    };
+	                });
 	            });
 	        }
 	    }]);
@@ -262,6 +309,12 @@
 
 /***/ },
 /* 6 */
+/***/ function(module, exports) {
+
+	module.exports = require("q");
+
+/***/ },
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -271,12 +324,16 @@
 	});
 	exports.saveHash = saveHash;
 	exports.getHash = getHash;
+	exports.addMemberToSet = addMemberToSet;
+	exports.getSetMembersCount = getSetMembersCount;
+	exports.getIntersectionOfSets = getIntersectionOfSets;
+	exports.removeMemberFromSet = removeMemberFromSet;
 	
-	var _redis = __webpack_require__(7);
+	var _redis = __webpack_require__(8);
 	
 	var _redis2 = _interopRequireDefault(_redis);
 	
-	var _q = __webpack_require__(8);
+	var _q = __webpack_require__(6);
 	
 	var _q2 = _interopRequireDefault(_q);
 	
@@ -285,6 +342,8 @@
 	var _url2 = _interopRequireDefault(_url);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 	
 	var redisClient = createRedisClient();
 	redisClient.on('error', function (err) {
@@ -319,6 +378,62 @@
 	    return deferred.promise;
 	}
 	
+	function addMemberToSet(key, member) {
+	    var deferred = _q2.default.defer();
+	
+	    redisClient.sadd(key, member, function (err, result) {
+	        if (err) {
+	            deferred.reject('Error saving set ' + key + ' from Redis: ' + err);
+	        }
+	
+	        deferred.resolve(result);
+	    });
+	
+	    return deferred.promise;
+	}
+	
+	function getSetMembersCount(key) {
+	    var deferred = _q2.default.defer();
+	
+	    redisClient.scard(key, function (err, result) {
+	        if (err) {
+	            deferred.reject('Error retrieving set ' + key + ' from Redis: ' + err);
+	        }
+	
+	        deferred.resolve(result);
+	    });
+	
+	    return deferred.promise;
+	}
+	
+	function getIntersectionOfSets(keys) {
+	    var deferred = _q2.default.defer();
+	
+	    redisClient.sinter.apply(redisClient, _toConsumableArray(keys).concat([function (err, result) {
+	        if (err) {
+	            deferred.reject('Error retrieving intersection from redis: ' + err);
+	        }
+	
+	        deferred.resolve(result);
+	    }]));
+	
+	    return deferred.promise;
+	}
+	
+	function removeMemberFromSet(key, member) {
+	    var deferred = _q2.default.defer();
+	
+	    redisClient.srem(key, member, function (err, result) {
+	        if (err) {
+	            deferred.reject('Error removing ' + member + ' from set ' + key + ' Redis: ' + err);
+	        }
+	
+	        deferred.resolve(result);
+	    });
+	
+	    return deferred.promise;
+	}
+	
 	function createRedisClient() {
 	    var client = null;
 	    if (process.env.REDISTOGO_URL) {
@@ -332,16 +447,10 @@
 	}
 
 /***/ },
-/* 7 */
-/***/ function(module, exports) {
-
-	module.exports = require("redis");
-
-/***/ },
 /* 8 */
 /***/ function(module, exports) {
 
-	module.exports = require("q");
+	module.exports = require("redis");
 
 /***/ },
 /* 9 */
@@ -351,6 +460,68 @@
 
 /***/ },
 /* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	var _route = __webpack_require__(4);
+	
+	var _route2 = _interopRequireDefault(_route);
+	
+	var _vote = __webpack_require__(5);
+	
+	var _vote2 = _interopRequireDefault(_vote);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+	
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+	
+	var VoteListRoute = function (_Route) {
+	    _inherits(VoteListRoute, _Route);
+	
+	    function VoteListRoute() {
+	        var method = arguments.length <= 0 || arguments[0] === undefined ? 'GET' : arguments[0];
+	        var path = arguments.length <= 1 || arguments[1] === undefined ? '/api/votes' : arguments[1];
+	
+	        _classCallCheck(this, VoteListRoute);
+	
+	        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(VoteListRoute).call(this, { method: method, path: path }));
+	
+	        _this.config = {
+	            cors: true,
+	            auth: 'token'
+	        };
+	        return _this;
+	    }
+	
+	    _createClass(VoteListRoute, [{
+	        key: 'handler',
+	        value: function handler(request, reply) {
+	            var voteService = new _vote2.default();
+	
+	            voteService.listVotes().then(function (count) {
+	                return reply({ count: count });
+	            });
+	        }
+	    }]);
+	
+	    return VoteListRoute;
+	}(_route2.default);
+	
+	exports.default = VoteListRoute;
+
+/***/ },
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -415,7 +586,7 @@
 	exports.default = VotePostRoute;
 
 /***/ },
-/* 11 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -430,7 +601,7 @@
 	
 	var _route2 = _interopRequireDefault(_route);
 	
-	var _auth = __webpack_require__(12);
+	var _auth = __webpack_require__(13);
 	
 	var _auth2 = _interopRequireDefault(_auth);
 	
@@ -475,7 +646,7 @@
 	exports.default = AuthPostRoute;
 
 /***/ },
-/* 12 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -486,29 +657,29 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _q = __webpack_require__(8);
+	var _q = __webpack_require__(6);
 	
 	var _q2 = _interopRequireDefault(_q);
 	
-	var _qs = __webpack_require__(13);
+	var _qs = __webpack_require__(14);
 	
 	var _qs2 = _interopRequireDefault(_qs);
 	
-	var _jwtSimple = __webpack_require__(14);
+	var _jwtSimple = __webpack_require__(15);
 	
 	var _jwtSimple2 = _interopRequireDefault(_jwtSimple);
 	
-	var _moment = __webpack_require__(15);
+	var _moment = __webpack_require__(16);
 	
 	var _moment2 = _interopRequireDefault(_moment);
 	
-	var _request = __webpack_require__(16);
+	var _request = __webpack_require__(17);
 	
 	var _request2 = _interopRequireDefault(_request);
 	
-	var _config = __webpack_require__(17);
+	var _config = __webpack_require__(18);
 	
-	var _redisDb = __webpack_require__(6);
+	var _redisDb = __webpack_require__(7);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -662,31 +833,31 @@
 	exports.default = AuthService;
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	module.exports = require("qs");
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	module.exports = require("jwt-simple");
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	module.exports = require("moment");
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports) {
 
 	module.exports = require("request");
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports) {
 
 	'use strict';

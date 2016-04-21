@@ -33,6 +33,61 @@ export function getHash(key) {
     return deferred.promise;
 }
 
+export function addMemberToSet(key, member) {
+    const deferred = q.defer();
+
+    redisClient.sadd(key, member, (err, result) => {
+        if (err) {
+            deferred.reject(`Error saving set ${key} from Redis: ${err}`);
+        }
+
+        deferred.resolve(result);
+    });
+
+    return deferred.promise;
+}
+
+export function getSetMembersCount(key) {
+    const deferred = q.defer();
+
+    redisClient.scard(key, (err, result) => {
+        if (err) {
+            deferred.reject(`Error retrieving set ${key} from Redis: ${err}`);
+        }
+
+        deferred.resolve(result);
+    });
+
+    return deferred.promise;
+}
+
+export function getIntersectionOfSets(keys) {
+    const deferred = q.defer();
+
+    redisClient.sinter(...keys, (err, result) => {
+        if (err) {
+            deferred.reject(`Error retrieving intersection from redis: ${err}`);
+        }
+
+        deferred.resolve(result);
+    });
+
+    return deferred.promise;
+}
+
+export function removeMemberFromSet(key, member) {
+    const deferred = q.defer();
+
+    redisClient.srem(key, member, (err, result) => {
+        if (err) {
+            deferred.reject(`Error removing ${member} from set ${key} Redis: ${err}`);
+        }
+
+        deferred.resolve(result);
+    });
+
+    return deferred.promise;
+}
 
 function createRedisClient() {
     let client = null;
