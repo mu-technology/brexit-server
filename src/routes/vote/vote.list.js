@@ -14,7 +14,11 @@ class VoteListRoute extends Route {
     handler(request, reply) {
         const voteService = new VoteService();
 
-        voteService.listVotes().then((count) => reply({ count }));
+        voteService.listVotes().then((votes) => {
+            const total = votes.reduce((acc, v) => acc + v.count, 0);
+
+            reply({ votes, total });
+        });
     }
 }
 

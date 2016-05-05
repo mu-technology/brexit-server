@@ -509,8 +509,12 @@
 	        value: function handler(request, reply) {
 	            var voteService = new _vote2.default();
 	
-	            voteService.listVotes().then(function (count) {
-	                return reply({ count: count });
+	            voteService.listVotes().then(function (votes) {
+	                var total = votes.reduce(function (acc, v) {
+	                    return acc + v.count;
+	                }, 0);
+	
+	                reply({ votes: votes, total: total });
 	            });
 	        }
 	    }]);
